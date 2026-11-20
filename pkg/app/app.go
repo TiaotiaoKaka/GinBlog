@@ -3,8 +3,8 @@ package app
 import (
 	"net/http"
 
-	"github.com/TiaotiaoKaka/GinBlog/pkg/errcode"
 	"github.com/gin-gonic/gin"
+	"github.com/go-programming-tour-book/blog-service/pkg/errcode"
 )
 
 type Response struct {
@@ -12,13 +12,18 @@ type Response struct {
 }
 
 type Pager struct {
-	Page      int `json:"page"`
-	PageSize  int `json:"page_size"`
+	// 页码
+	Page int `json:"page"`
+	// 每页数量
+	PageSize int `json:"page_size"`
+	// 总行数
 	TotalRows int `json:"total_rows"`
 }
 
 func NewResponse(ctx *gin.Context) *Response {
-	return &Response{Ctx: ctx}
+	return &Response{
+		Ctx: ctx,
+	}
 }
 
 func (r *Response) ToResponse(data interface{}) {

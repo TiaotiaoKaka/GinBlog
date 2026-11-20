@@ -8,12 +8,12 @@ import (
 	"log"
 	"runtime"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
-/* ---------------------------------- 日志分级 ---------------------------------- */
 type Level int8
 
-// 日志的结构化附加字段，键值对形式，最终会序列化到 JSON 输出中
 type Fields map[string]interface{}
 
 const (
@@ -43,12 +43,11 @@ func (l Level) String() string {
 	return ""
 }
 
-/* ---------------------------------- 日志标准化 --------------------------------- */
 type Logger struct {
-	newLogger *log.Logger     //Go 标准库日志实例，负责最终写入
-	ctx       context.Context //上下文（可用于传递 traceID 等）
-	fields    Fields          // 结构化附加字段
-	callers   []string        // 调用栈信息
+	newLogger *log.Logger
+	ctx       context.Context
+	fields    Fields
+	callers   []string
 }
 
 func NewLogger(w io.Writer, prefix string, flag int) *Logger {
@@ -97,7 +96,8 @@ func (l *Logger) WithCallersFrames() *Logger {
 	depth := runtime.Callers(minCallerDepth, pcs)
 	frames := runtime.CallersFrames(pcs[:depth])
 	for frame, more := frames.Next(); more; frame, more = frames.Next() {
-		callers = append(callers, fmt.Sprintf("%s: %d %s", frame.File, frame.Line, frame.Function))
+		s := fmt.Sprintf("%s: %d %s", frame.File, frame.Line, frame.Function)
+		callers = append(callers, s)
 		if !more {
 			break
 		}
@@ -107,7 +107,17 @@ func (l *Logger) WithCallersFrames() *Logger {
 	return ll
 }
 
-/* -------------------------------- 日志格式化和输出 -------------------------------- */
+func (l *Logger) WithTrace() *Logger {
+	ginCtx, ok := l.ctx.(*gin.Context)
+	if ok {
+		return l.WithFields(Fields{
+			"trace_id": ginCtx.MustGet("X-Trace-ID"),
+			"span_id":  ginCtx.MustGet("X-Span-ID"),
+		})
+	}
+	return l
+}
+
 func (l *Logger) JSONFormat(level Level, message string) map[string]interface{} {
 	data := make(Fields, len(l.fields)+4)
 	data["level"] = level.String()
@@ -144,19 +154,50 @@ func (l *Logger) Output(level Level, message string) {
 	}
 }
 
-/* --------------------------------- 日志分级输出 --------------------------------- */
-func (l *Logger) Info(v ...interface{}) {
-	l.Output(LevelInfo, fmt.Sprint(v...))
+func (l *Logger) Debug(ctx context.Context, v ...interface{}) {
+	l.WithContext(ctx).WithTrace().Output(LevelDebug, fmt.Sprint(v...))
 }
 
-func (l *Logger) Infof(format string, v ...interface{}) {
-	l.Output(LevelInfo, fmt.Sprintf(format, v...))
+func (l *Logger) Debugf(ctx context.Context, format string, v ...interface{}) {
+	l.WithContext(ctx).WithTrace().Output(LevelDebug, fmt.Sprintf(format, v...))
 }
 
-func (l *Logger) Fatal(v ...interface{}) {
-	l.Output(LevelFatal, fmt.Sprint(v...))
+func (l *Logger) Info(ctx context.Context, v ...interface{}) {
+	l.WithContext(ctx).WithTrace().Output(LevelInfo, fmt.Sprint(v...))
 }
 
-func (l *Logger) Fatalf(format string, v ...interface{}) {
-	l.Output(LevelFatal, fmt.Sprintf(format, v...))
+func (l *Logger) Infof(ctx context.Context, format string, v ...interface{}) {
+	l.WithContext(ctx).WithTrace().Output(LevelInfo, fmt.Sprintf(format, v...))
+}
+
+func (l *Logger) Warn(ctx context.Context, v ...interface{}) {
+	l.WithContext(ctx).WithTrace().Output(LevelWarn, fmt.Sprint(v...))
+}
+
+func (l *Logger) Warnf(ctx context.Context, format string, v ...interface{}) {
+	l.WithContext(ctx).WithTrace().Output(LevelWarn, fmt.Sprintf(format, v...))
+}
+
+func (l *Logger) Error(ctx context.Context, v ...interface{}) {
+	l.WithContext(ctx).WithTrace().Output(LevelError, fmt.Sprint(v...))
+}
+
+func (l *Logger) Errorf(ctx context.Context, format string, v ...interface{}) {
+	l.WithContext(ctx).WithTrace().Output(LevelError, fmt.Sprintf(format, v...))
+}
+
+func (l *Logger) Fatal(ctx context.Context, v ...interface{}) {
+	l.WithContext(ctx).WithTrace().Output(LevelFatal, fmt.Sprint(v...))
+}
+
+func (l *Logger) Fatalf(ctx context.Context, format string, v ...interface{}) {
+	l.WithContext(ctx).WithTrace().Output(LevelFatal, fmt.Sprintf(format, v...))
+}
+
+func (l *Logger) Panic(ctx context.Context, v ...interface{}) {
+	l.WithContext(ctx).WithTrace().Output(LevelPanic, fmt.Sprint(v...))
+}
+
+func (l *Logger) Panicf(ctx context.Context, format string, v ...interface{}) {
+	l.WithContext(ctx).WithTrace().Output(LevelPanic, fmt.Sprintf(format, v...))
 }

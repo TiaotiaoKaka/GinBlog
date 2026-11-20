@@ -6,8 +6,11 @@ import (
 )
 
 type Error struct {
-	code    int      `json:"code"`
-	msg     string   `json:"msg"`
+	// 错误码
+	code int `json:"code"`
+	// 错误消息
+	msg string `json:"msg"`
+	// 详细信息
 	details []string `json:"details"`
 }
 
@@ -22,7 +25,7 @@ func NewError(code int, msg string) *Error {
 }
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("错误码：%d, 错误信息：%s", e.Code(), e.Msg())
+	return fmt.Sprintf("错误码：%d, 错误信息:：%s", e.Code(), e.Msg())
 }
 
 func (e *Error) Code() int {
@@ -70,5 +73,6 @@ func (e *Error) StatusCode() int {
 	case TooManyRequests.Code():
 		return http.StatusTooManyRequests
 	}
+
 	return http.StatusInternalServerError
 }
